@@ -1,0 +1,43 @@
+name: Deploy Viewly to Cloudflare
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SCRAPECREATORS_API_KEY: ${{ secrets.SCRAPECREATORS_API_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Validate Worker
+        run: npm run check
+
+      - name: Initial deploy
+        run: npx wrangler deploy
+
+      - name: Configure provider secret
+        if: ${{ env.SCRAPECREATORS_API_KEY != '' }}
+        run: printf '%s' "$SCRAPECREATORS_API_KEY" | npx wrangler secret put SCRAPECREATORS_API_KEY
+
+      - name: Final deploy
+        if: ${{ env.SCRAPECREATORS_API_KEY != '' }}
+        run: npx wrangler deploy
