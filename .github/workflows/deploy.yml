@@ -23,7 +23,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Install dependencies
         run: npm install
@@ -32,12 +31,23 @@ jobs:
         run: npm run check
 
       - name: Initial deploy
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' }}
         run: npx wrangler deploy
 
       - name: Configure provider secret
-        if: ${{ env.SCRAPECREATORS_API_KEY != '' }}
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' && env.SCRAPECREATORS_API_KEY != '' }}
         run: printf '%s' "$SCRAPECREATORS_API_KEY" | npx wrangler secret put SCRAPECREATORS_API_KEY
 
       - name: Final deploy
-        if: ${{ env.SCRAPECREATORS_API_KEY != '' }}
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' && env.SCRAPECREATORS_API_KEY != '' }}
         run: npx wrangler deploy
+
+      - name: Deployment status
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "Cloudflare secrets not configured; validation completed and deploy skipped."
+          elif [ -z "$SCRAPECREATORS_API_KEY" ]; then
+            echo "Cloudflare deploy available, but SCRAPECREATORS_API_KEY is missing."
+          else
+            echo "Viewly deploy pipeline completed."
+          fi
